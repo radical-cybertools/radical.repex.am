@@ -2,7 +2,7 @@
 
 __author__    = 'RADICAL Team'
 __email__     = 'radical@radical-project.org'
-__copyright__ = 'Copyright ###year###, RADICAL Research, Rutgers University'
+__copyright__ = 'Copyright date +%Y, RADICAL Research, Rutgers University'
 __license__   = 'MIT'
 
 
@@ -20,8 +20,8 @@ from setuptools          import setup, Command, find_packages
 
 
 # ------------------------------------------------------------------------------
-name     = 'radical.###lname###'
-mod_root = 'src/radical/###lname###/'
+name     = 'radical.repex'
+mod_root = 'src/radical/repex/'
 
 
 # ------------------------------------------------------------------------------
@@ -265,7 +265,7 @@ setup_args = {
     'author_email'       : 'radical@rutgers.edu',
     'maintainer'         : 'The RADICAL Group',
     'maintainer_email'   : 'radical@rutgers.edu',
-    'url'                : 'https://www.github.com/radical-cybertools/radical.###lname###/',
+    'url'                : 'https://www.github.com/radical-cybertools/radical.repex/',
     'license'            : 'MIT',
     'keywords'           : 'radical distributed computing',
     'classifiers'        : [
@@ -284,7 +284,7 @@ setup_args = {
         'Operating System :: Unix'
     ],
     'packages'           : find_packages('src'),
-    'scripts'            : ['bin/radical###lname###-version'],
+    'scripts'            : ['bin/radicalrepex-version'],
     'package_data'       : {'': ['*.txt', '*.sh', '*.json', '*.gz', '*.c',
                                  'VERSION', 'SDIST', sdist_name]},
   # 'setup_requires'     : ['pytest-runner'],
