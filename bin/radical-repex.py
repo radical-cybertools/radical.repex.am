@@ -1,0 +1,14 @@
+
+import radical.repex as rr
+
+
+# ------------------------------------------------------------------------------
+#
+if __name__ == '__main__':
+
+    exchange = rr.Exchange(ensemble_size=128, exchange_size=8, md_cycles=16)
+    exchange.terminate()
+
+
+# ------------------------------------------------------------------------------
+
