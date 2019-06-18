@@ -254,7 +254,7 @@ if  sys.hexversion < 0x02060000 or sys.hexversion >= 0x03000000:
     raise RuntimeError('SETUP ERROR: %s requires Python 2.6 or higher' % name)
 
 
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 setup_args = {
     'name'               : name,
     'namespace_packages' : ['radical'],
@@ -285,6 +285,7 @@ setup_args = {
     ],
     'packages'           : find_packages('src'),
     'scripts'            : ['bin/radicalrepex-version'],
+    'package_dir'        : {'': 'src'},
     'package_data'       : {'': ['*.txt', '*.sh', '*.json', '*.gz', '*.c',
                                  'VERSION', 'SDIST', sdist_name]},
   # 'setup_requires'     : ['pytest-runner'],
