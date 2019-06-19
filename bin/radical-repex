@@ -1,13 +1,87 @@
 #!/usr/bin/env python
-#
+
 import radical.repex as rr
+
+
+# ------------------------------------------------------------------------------
+#
+def select_by_size(waitlist, criteria):
+    '''
+    This is the core algorithm: out of the list of eligible replicas, select
+    those which should be part of an exchange step
+    '''
+
+    # get required parameters
+    ex_size = criteria['exchange_size']
+
+    # check if size of wait list suffices
+    if len(waitlist) < ex_size:
+
+        # not enough replicas to attempt exchange
+        return
+
+    # we have enough replicas!  Remove all as echange candidates from the
+    # waitlist and return them!
+    exchange_list = list()
+    print 'select ',
+    for r in waitlist:
+        print r.properties['rid'],
+        exchange_list.append(r)
+    print
+
+    # empty the waitlist to start collecting new cccadidates
+    new_waitlist = list()
+
+    return exchange_list, new_waitlist
+
+
+# ------------------------------------------------------------------------------
+#
+def exchange_by_random():
+
+    import sys
+    import random
+
+    replicas = int(sys.argv[1])
+    cycle    = int(sys.argv[2])
+
+    exchange_list_1 = range(replicas)
+    exchange_list_2 = range(replicas)
+
+    random.shuffle(exchange_list_1)
+    random.shuffle(exchange_list_2)
+
+    exchangePairs = zip(exchange_list_2, exchange_list_2)
+
+    with open('exchangePairs_%d.dat' % cycle, 'w') as f:
+        for p in exchangePairs:
+            line = ' '.join(str(x) for x in p)
+            f.write(line + '\n')
 
 
 # ------------------------------------------------------------------------------
 #
 if __name__ == '__main__':
 
-    exchange = rr.Exchange(ensemble_size=128, exchange_size=8, md_cycles=16)
+    # create the required number of replicas
+    replicas = list()
+    for i in range(128):
+        properties = {'rid'  : i,
+                      'temp' : 123.45 + float(i / 10),
+                      'foo'  : 'bar'}
+        replica = rr.Replica(properties)
+        replicas.append(replica)
+
+    # exchange criteria (input to selection algorithm)
+    criteria = {'exchange_size': 8}
+
+    # create and run the replica exchange ensemble
+    exchange = rr.Exchange(replicas=replicas,
+                           replica_cycles=3,
+                           selection_algorithm=select_by_size,
+                           selection_criteria=criteria,
+                           exchange_algorithm=exchange_by_random)
+    exchange.run()
     exchange.terminate()
 
 

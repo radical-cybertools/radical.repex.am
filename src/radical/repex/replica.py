@@ -16,29 +16,50 @@ class Replica(re.Pipeline):
 
     # --------------------------------------------------------------------------
     #
-    def __init__(self, check_ex, check_res, rid):
+    def __init__(self, properties):
 
-        self._check_ex  = check_ex
-        self._check_res = check_res
-        self._rid       = rid
+        self._check_ex  = None
+        self._check_res = None
 
+        if 'rid' in properties:
+            self._rid   = properties['rid']
+        else:
+            self._rid   = ru.generate_id('replica..%(counter)06d', ru.ID_CUSTOM)
+
+        self._props     = properties
         self._cycle     = 0     # initial cycle
         self._ex_list   = None  # list of replicas used in exchange step
 
         re.Pipeline.__init__(self)
         self.name = 'p_%s' % self.rid
-        self._log = ru.Logger('radical.repex.rep')
+        self._log = ru.Logger('radical.repex')
+
+
+    # --------------------------------------------------------------------------
+    #
+    def _initialize(self, check_ex, check_res):
+        '''
+        This method should only be called by the Exchange class upon
+        initialization.
+        '''
+
+        self._check_ex  = check_ex
+        self._check_res = check_res
 
         # add an initial md stage
         self.add_md_stage()
 
 
+    # --------------------------------------------------------------------------
+    #
     @property
-    def rid(self):      return self._rid
+    def rid(self):        return self._rid
 
     @property
-    def cycle(self):    return self._cycle
+    def cycle(self):      return self._cycle
 
+    @property
+    def properties(self): return self._props
 
     # --------------------------------------------------------------------------
     #
@@ -79,15 +100,17 @@ class Replica(re.Pipeline):
 
     # --------------------------------------------------------------------------
     #
-    def add_ex_stage(self, exchange_list):
+    def add_ex_stage(self, exchange_list, ex_alg):
 
         self._log.debug('=== %s add ex: %s', self.rid,
                                              [r.rid for r in exchange_list])
         self._ex_list = exchange_list
 
         task = re.Task()
-        task.name       = 'extsk'
-        task.executable = 'date'
+        task.name              = 'extsk'
+        task.executable        = 'python'
+        task.arguments         = [ex_alg, len(exchange_list), self._cycle]
+        task.upload_input_data = [ex_alg]
 
         stage = re.Stage()
         stage.add_tasks(task)

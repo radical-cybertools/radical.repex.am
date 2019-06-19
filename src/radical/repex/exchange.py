@@ -1,5 +1,6 @@
 
 import time
+import inspect
 
 import threading as mt
 
@@ -26,14 +27,23 @@ class Exchange(re.AppManager):
 
     # --------------------------------------------------------------------------
     #
-    def __init__(self, ensemble_size, exchange_size, md_cycles):
+    def __init__(self, replicas, replica_cycles,
+                       selection_algorithm, selection_criteria,
+                       exchange_algorithm):
 
-        self._en_size = ensemble_size
-        self._ex_size = exchange_size
-        self._cycles  = md_cycles
+        self._replicas  = replicas
+        self._cycles    = replica_cycles
+        self._en_size   = len(replicas)
+        self._sel_crit  = selection_criteria
+        self._sel_alg   = selection_algorithm
+        self._waitlist  = list()
+
+        for r in replicas:
+            r._initialize(check_ex  = self._check_exchange,
+                          check_res = self._check_resume)
 
         self._lock = mt.Lock()
-        self._log  = ru.Logger('radical.repex.exc')
+        self._log  = ru.Logger('radical.repex')
         self._dout = open('dump.log', 'a')
 
         re.AppManager.__init__(self, autoterminate=False, port=5672)
@@ -41,23 +51,24 @@ class Exchange(re.AppManager):
                               "walltime" : 30,
                               "cpus"     : 16}
 
-        self._replicas = list()
-        self._waitlist = list()
-
-        # create the required number of replicas
-        for i in range(self._en_size):
-
-            replica = Replica(check_ex  = self._check_exchange,
-                              check_res = self._check_resume,
-                              rid       = i)
-
-            self._replicas.append(replica)
-
         self._dump(msg='startup')
 
         # run the replica pipelines
         self.workflow = set(self._replicas)
-        self.run()
+
+        # write exchange algorithm to disk (once)
+        self._ex_alg = './exchange_algorithm.py'
+        with open(self._ex_alg, 'w') as fout:
+            fout.write('#!/usr/bin/env python\n\n%s\n\n%s()\n\n' %
+                       (inspect.getsource(exchange_algorithm),
+                        exchange_algorithm.__name__))
+
+
+    # --------------------------------------------------------------------------
+    #
+    def run(self):
+
+        return re.AppManager.run(self)
 
 
     # --------------------------------------------------------------------------
@@ -97,14 +108,13 @@ class Exchange(re.AppManager):
         # and it should be guarded by a lock.
         with self._lock:
 
-            self._log.debug('=== %s check exchange : %d >= %d?',
-                      replica.rid, len(self._waitlist), self._ex_size)
-
             self._waitlist.append(replica)
 
-            exchange_list = self._find_exchange_list()
+            # invoke the user defined selection algorithm
+            selection = self._sel_alg(self._waitlist, self._sel_crit)
 
-            if not exchange_list:
+            # check if the user found something to exchange
+            if not selection:
                 # nothing to do, Suspend this replica and wait until we get more
                 # candidates and can try again
                 self._log.debug('=== %s no  - suspend', replica.rid)
@@ -112,38 +122,31 @@ class Exchange(re.AppManager):
                 self._dump()
                 return
 
+            # Seems we got something - make sure its valid:  exchange list and
+            # new wait list must be proper partitions of the original waitlist:
+            #   - make sure no replica is lost
+            #   - make sure that replicas are not in both lists
+            [exchange_list, wait_list] = selection
+
+            missing = len(self._waitlist) - len(exchange_list) - len(wait_list)
+            if missing:
+                raise ValueError('%d replicas went missing' % missing)
+
+            for r in self._waitlist:
+                if r not in exchange_list and r not in wait_list:
+                    raise ValueError('replica %s (%s) missing'
+                                    % r, r.properties)
+
+            # lists are valid!  use them!
+            self._waitlist = wait_list
+
             self._log.debug('=== %s yes - exchange', replica.rid)
             msg = " > %s: %s" % (replica.rid, [r.rid for r in exchange_list])
             self._dump(msg=msg, special=exchange_list, glyph='v')
 
             # we have a set of exchange candidates.  The current replica is
             # tasked to host the exchange task.
-            replica.add_ex_stage(exchange_list)
-
-
-    # --------------------------------------------------------------------------
-    #
-    def _find_exchange_list(self):
-        '''
-        This is the core algorithm: out of the list of eligible replicas, select
-        those which should be part of an exchange step
-        '''
-
-        if len(self._waitlist) < self._ex_size:
-
-            # not enough replicas to attempt exchange
-            return
-
-        # we have enough replicas!  Remove all as echange candidates from the
-        # waitlist and return them!
-        exchange_list = list()
-        for r in self._waitlist:
-            exchange_list.append(r)
-
-        # empty the waitlist to start collecting new cccadidates
-        self._waitlist = list()
-
-        return exchange_list
+            replica.add_ex_stage(exchange_list, self._ex_alg)
 
 
     # --------------------------------------------------------------------------
