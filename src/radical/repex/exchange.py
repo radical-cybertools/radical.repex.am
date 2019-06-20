@@ -137,6 +137,10 @@ class Exchange(re.AppManager):
                     raise ValueError('replica %s (%s) missing'
                                     % r, r.properties)
 
+            if replica not in selection:
+                raise ValueError('active replica (%s) not in exchange list %s)'
+                                % (replica.rid, [r.rid for r in selection]))
+
             # lists are valid!  use them!
             self._waitlist = wait_list
 
