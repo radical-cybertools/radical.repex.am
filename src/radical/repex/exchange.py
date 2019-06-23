@@ -111,7 +111,8 @@ class Exchange(re.AppManager):
             self._waitlist.append(replica)
 
             # invoke the user defined selection algorithm
-            selection = self._sel_alg(self._waitlist, self._sel_crit)
+            selection, new_waitlist = self._sel_alg(self._waitlist,
+                                                    self._sel_crit)
 
             # check if the user found something to exchange
             if not selection:
@@ -128,12 +129,13 @@ class Exchange(re.AppManager):
             #   - make sure that replicas are not in both lists
             [exchange_list, wait_list] = selection
 
-            missing = len(self._waitlist) - len(exchange_list) - len(wait_list)
+            missing = len(self._waitlist) - \
+                      len(exchange_list) - len(new_waitlist)
             if missing:
                 raise ValueError('%d replicas went missing' % missing)
 
             for r in self._waitlist:
-                if r not in exchange_list and r not in wait_list:
+                if r not in exchange_list and r not in new_waitlist:
                     raise ValueError('replica %s (%s) missing'
                                     % r, r.properties)
 
@@ -141,8 +143,8 @@ class Exchange(re.AppManager):
                 raise ValueError('active replica (%s) not in exchange list %s)'
                                 % (replica.rid, [r.rid for r in selection]))
 
-            # lists are valid!  use them!
-            self._waitlist = wait_list
+            # lists are valid - use them
+            self._waitlist = new_waitlist
 
             self._log.debug('=== %s yes - exchange', replica.rid)
             msg = " > %s: %s" % (replica.rid, [r.rid for r in exchange_list])

@@ -29,7 +29,7 @@ def select_by_size(waitlist, criteria):
         exchange_list.append(r)
     print
 
-    # empty the waitlist to start collecting new cccadidates
+    # empty the waitlist to start collecting new candidates
     new_waitlist = list()
 
     return exchange_list, new_waitlist
