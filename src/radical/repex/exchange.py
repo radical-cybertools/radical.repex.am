@@ -1,4 +1,5 @@
 
+import sys
 import time
 import inspect
 
@@ -8,15 +9,11 @@ import radical.entk  as re
 import radical.utils as ru
 
 
-from .replica import Replica
-
-t_0 = time.time()
-
-
 # ------------------------------------------------------------------------------
 #
 class Exchange(re.AppManager):
 
+    _t_0    = time.time()
     _glyphs = {re.states.INITIAL:    '+',
                re.states.SCHEDULING: '|',
                re.states.SUSPENDED:  '-',
@@ -78,7 +75,7 @@ class Exchange(re.AppManager):
         if not msg:
             msg = ''
 
-        self._dout.write(' | %7.2f |' % (time.time() - t_0))
+        self._dout.write(' | %7.2f |' % (time.time() - self._t_0))
         for r in self._replicas:
             if special and r in special:
                 self._dout.write('%s' % glyph)
@@ -110,13 +107,19 @@ class Exchange(re.AppManager):
 
             self._waitlist.append(replica)
 
+            ex_list   = None
+            new_wlist = None
+
             # invoke the user defined selection algorithm
-            selection, new_waitlist = self._sel_alg(self._waitlist,
-                                                    self._sel_crit)
+            try:
+                ex_list, new_wlist = self._sel_alg(waitlist=self._waitlist,
+                                                   criteria=self._sel_crit)
+            except Exception as e:
+                self._log.warn('=== selection algorithm failed: %s' % e)
 
             # check if the user found something to exchange
-            if not selection:
-                # nothing to do, Suspend this replica and wait until we get more
+            if not ex_list:
+                # nothing to do, suspend this replica and wait until we get more
                 # candidates and can try again
                 self._log.debug('=== %s no  - suspend', replica.rid)
                 replica.suspend()
@@ -127,32 +130,29 @@ class Exchange(re.AppManager):
             # new wait list must be proper partitions of the original waitlist:
             #   - make sure no replica is lost
             #   - make sure that replicas are not in both lists
-            [exchange_list, wait_list] = selection
-
-            missing = len(self._waitlist) - \
-                      len(exchange_list) - len(new_waitlist)
+            missing = len(self._waitlist) - len(ex_list) - len(new_wlist)
             if missing:
                 raise ValueError('%d replicas went missing' % missing)
 
             for r in self._waitlist:
-                if r not in exchange_list and r not in new_waitlist:
+                if r not in ex_list and r not in new_wlist:
                     raise ValueError('replica %s (%s) missing'
                                     % r, r.properties)
 
-            if replica not in selection:
+            if replica not in ex_list:
                 raise ValueError('active replica (%s) not in exchange list %s)'
-                                % (replica.rid, [r.rid for r in selection]))
+                                % (replica.rid, [r.rid for r in ex_list]))
 
             # lists are valid - use them
-            self._waitlist = new_waitlist
+            self._waitlist = new_wlist
 
             self._log.debug('=== %s yes - exchange', replica.rid)
-            msg = " > %s: %s" % (replica.rid, [r.rid for r in exchange_list])
-            self._dump(msg=msg, special=exchange_list, glyph='v')
+            msg = " > %s: %s" % (replica.rid, [r.rid for r in ex_list])
+            self._dump(msg=msg, special=ex_list, glyph='v')
 
             # we have a set of exchange candidates.  The current replica is
             # tasked to host the exchange task.
-            replica.add_ex_stage(exchange_list, self._ex_alg)
+            replica.add_ex_stage(ex_list, self._ex_alg)
 
 
     # --------------------------------------------------------------------------
