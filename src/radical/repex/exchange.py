@@ -113,7 +113,8 @@ class Exchange(re.AppManager):
             # invoke the user defined selection algorithm
             try:
                 ex_list, new_wlist = self._sel_alg(waitlist=self._waitlist,
-                                                   criteria=self._sel_crit)
+                                                   criteria=self._sel_crit,
+                                                   replica=replica)
             except Exception as e:
                 self._log.warn('=== selection algorithm failed: %s' % e)
 
