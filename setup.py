@@ -83,12 +83,18 @@ def get_version(mod_root):
             'tag=`git describe --tags --always` 2>/dev/null ; '
             'branch=`git branch | grep -e "^*" | cut -f 2- -d " "` 2>/dev/null ; '
             'echo $tag@$branch' % src_root)
+        fout = open('/tmp/t', 'w')
+        fout.write('%s\n' % out)
+        fout.write('%s\n' % err)
+        fout.write('%s\n' % ret)
         version_detail = out.strip()
         version_detail = version_detail.replace('detached from ', 'detached-')
+        fout.write('%s\n' % version_detail)
 
         # remove all non-alphanumeric (and then some) chars
         version_detail = re.sub('[/ ]+', '-', version_detail)
         version_detail = re.sub('[^a-zA-Z0-9_+@.-]+', '', version_detail)
+        fout.write('%s\n' % version_detail)
 
         if  ret            !=  0  or \
             version_detail == '@' or \
@@ -101,6 +107,7 @@ def get_version(mod_root):
             version = '%s-%s' % (version_base, version_detail)
         else:
             version = version_base
+        fout.write('%s\n' % version)
 
         # make sure the version files exist for the runtime version inspection
         path = '%s/%s' % (src_root, mod_root)
