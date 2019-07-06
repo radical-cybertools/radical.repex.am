@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 __author__    = 'RADICAL Team'
-__email__     = 'radical@radical-project.org'
-__copyright__ = 'Copyright date +%Y, RADICAL Research, Rutgers University'
+__email__     = 'radical@rutgers.edu'
+__copyright__ = 'Copyright 2013-19, RADICAL Research, Rutgers University'
 __license__   = 'MIT'
 
 
@@ -11,6 +11,7 @@ __license__   = 'MIT'
 import re
 import os
 import sys
+import glob
 import shutil
 
 import subprocess as sp
@@ -159,86 +160,6 @@ def read(*rnames):
 
 # ------------------------------------------------------------------------------
 #
-# borrowed from the MoinMoin-wiki installer
-#
-def makeDataFiles(prefix, dir):
-    ''' Create distutils data_files structure from dir
-
-    distutil will copy all file rooted under dir into prefix, excluding
-    dir itself, just like 'ditto src dst' works, and unlike 'cp -r src
-    dst, which copy src into dst'.
-
-    Typical usage:
-        # install the contents of 'wiki' under sys.prefix+'share/moin'
-        data_files = makeDataFiles('share/moin', 'wiki')
-
-    For this directory structure:
-        root
-            file1
-            file2
-            dir
-                file
-                subdir
-                    file
-
-    makeDataFiles('prefix', 'root')  will create this distutil
-    data_files structure:
-        [('prefix', ['file1', 'file2']),
-         ('prefix/dir', ['file']),
-         ('prefix/dir/subdir', ['file'])]
-    '''
-    # Strip 'dir/' from of path before joining with prefix
-    dir = dir.rstrip('/')
-    strip = len(dir) + 1
-    found = []
-    os.path.walk(dir, visit, (prefix, strip, found))
-    return found
-
-
-def visit((prefix, strip, found), dirname, names):
-    ''' Visit directory, create distutil tuple
-
-    Add distutil tuple for each directory using this format:
-        (destination, [dirname/file1, dirname/file2, ...])
-
-    distutil will copy later file1, file2, ... info destination.
-    '''
-    files = []
-    # Iterate over a copy of names, modify names
-    for name in names[:]:
-        path = os.path.join(dirname, name)
-        # Ignore directories -  we will visit later
-        if os.path.isdir(path):
-            # Remove directories we don't want to visit later
-            if isbad(name):
-                names.remove(name)
-            continue
-        elif isgood(name):
-            files.append(path)
-    destination = os.path.join(prefix, dirname[strip:])
-    found.append((destination, files))
-
-
-def isbad(name):
-    ''' Whether name should not be installed '''
-    return (name.startswith('.') or
-            name.startswith('#') or
-            name.endswith('.pickle') or
-            name == 'CVS')
-
-
-def isgood(name):
-    ''' Whether name should be installed '''
-    if not isbad(name):
-        if  name.endswith('.py')   or \
-            name.endswith('.json') or \
-            name.endswith('.tar'):
-            return True
-    return False
-
-
-# ------------------------------------------------------------------------------
-#
 class RunTwine(Command):
     user_options = []
     def initialize_options (self) : pass
@@ -255,11 +176,18 @@ if  sys.hexversion < 0x02060000 or sys.hexversion >= 0x03000000:
 
 
 # ------------------------------------------------------------------------------
+#
+df = list()
+df.append(('share/%s/examples/'    % name, glob.glob('examples/*.{py,cfg}')))
+
+
+# ------------------------------------------------------------------------------
+#
 setup_args = {
     'name'               : name,
     'namespace_packages' : ['radical'],
     'version'            : version,
-    'description'        : '###TODO### add project description here.',
+    'description'        : 'RADICAL Replica Exchange Framework.',
   # 'long_description'   : (read('README.md') + '\n\n' + read('CHANGES.md')),
     'author'             : 'RADICAL Group at Rutgers University',
     'author_email'       : 'radical@rutgers.edu',
@@ -284,17 +212,23 @@ setup_args = {
         'Operating System :: Unix'
     ],
     'packages'           : find_packages('src'),
-    'scripts'            : ['bin/radical-repex-version'],
     'package_dir'        : {'': 'src'},
+    'scripts'            : ['bin/radical-repex-version'],
     'package_data'       : {'': ['*.txt', '*.sh', '*.json', '*.gz', '*.c',
-                                 'VERSION', 'SDIST', sdist_name]},
+                                 'VERSION', 'CHANGES.md', 'SDIST', sdist_name]},
   # 'setup_requires'     : ['pytest-runner'],
     'install_requires'   : ['radical.utils',
                             'radical.entk'],
-    'tests_require'      : ['pytest', 'coverage', 'flake8', 'pudb', 'pylint'],
+    'tests_require'      : ['pytest',
+                            'pylint',
+                            'flake8',
+                            'coverage',
+                            'mock==2.0.0.',
+                            'pudb',
+                           ],
     'test_suite'         : '%s.tests' % name,
     'zip_safe'           : False,
-    'data_files'         : makeDataFiles('share/%s/examples/' % name, 'examples'),
+    'data_files'         : df,
     'cmdclass'           : {'upload': RunTwine},
 }
 
