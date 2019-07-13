@@ -16,8 +16,9 @@ class Replica(re.Pipeline):
 
     # --------------------------------------------------------------------------
     #
-    def __init__(self, properties):
+    def __init__(self, workload, properties):
 
+        self._workload  = workload
         self._check_ex  = None
         self._check_res = None
 
@@ -75,10 +76,8 @@ class Replica(re.Pipeline):
 
         self._log.debug('=== %s add md', self.rid)
 
-        task = re.Task()
-        task.name        = 'mdtsk-%s-%s' % (self.rid, self.cycle)
-        task.executable  = 'sleep'
-        task.arguments   = [str(random.randint(0, 20) / 10.0)]
+        task = re.Task(from_dict=self._workload['md'])
+      # task.name = 'mdtsk-%s-%s' % (self.rid, self.cycle)
 
         stage = re.Stage()
         stage.add_tasks(task)
@@ -106,9 +105,7 @@ class Replica(re.Pipeline):
                                              [r.rid for r in exchange_list])
         self._ex_list = exchange_list
 
-        task = re.Task()
-        task.name              = 'extsk'
-        task.executable        = 'python'
+        task = re.Task(from_dict=self._workload['ex'])
         task.arguments         = [ex_alg, len(exchange_list), self._cycle]
         task.upload_input_data = [ex_alg]
 
